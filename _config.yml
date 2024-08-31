@@ -2,7 +2,7 @@
 #   Main Configs   #
 # ---------------- #
 baseurl:
-url: scriptoverture.github.io/blog
+url: https://scriptoverture.github.io/blog
 date_format: "ordinal"
 title: overture
 subtitle: "Blog"
