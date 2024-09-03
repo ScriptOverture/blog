@@ -185,9 +185,9 @@ beaudar:
 # giscus 配置参考：https://giscus.app/zh-CN
 giscus:
     repo: scriptoverture/blog
-    repo-id: MDEwOlJlcG9zaXRvcnk5MzEyNzkxNw==
+    repo-id: R_kgDOMq9zeA
     category: Announcements
-    category-id: DIC_kwDOBY0E7c4CRtg9
+    category-id: DIC_kwDOMq9zeM4CiHLc
 # 在使用其它评论组件时可点击显示 Disqus
 lazy_load_disqus : false
 
