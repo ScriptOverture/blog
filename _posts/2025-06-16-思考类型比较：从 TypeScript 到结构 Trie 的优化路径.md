@@ -1,8 +1,8 @@
 ---
 layout: post
-title: 思考类型比较：从 TypeScript 到结构 Trie 的优化路径
+title: 如何高效比较类型结构？从 TS 的类型系统到结构 Trie 优化
 categories: [JavaScript, TypeScript, V8]
-description: 什么是闭包？它包裹的是什么东西？又为什么会导致内存泄露？你真的理解闭包吗？
+description: 如何高效比较类型结构？从 TS 的类型系统到结构 Trie 优化
 keywords: JavaScript, ts, TypeScript, V8
 ---
 
@@ -219,7 +219,7 @@ type O_2 = { name: string, age: number, other: any }
 - 哈希映射不可逆，不支持嵌套结构
 - 无法表达子结构复用与结构相似性
 
-### 我的方案：结构 Trie + 类型哈希优化
+### 我的方案：结构字段映射 + 前缀 Trie
 为了解决上面的问题，我最终采取一种基于前置树的比较机制。通过将对象类型结构抽象，使得对象类型的比较从递归演变为路径匹配，以实现复用以及更好的性能
 
 关键步骤：
