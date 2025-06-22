@@ -276,7 +276,7 @@ fieldMap = { name: 1, obj: 2, age: 3 }
 |----|--------------------------------------------------------------------------------------|--------|-----------|
 | O  | `[name{ fieldId_1, type_kind }]`                                                     | 无      | 1         |
 | O1 | `[name{ fieldId_1, type_kind }, obj { fieldId_2, obj_flagId }]`                      | obj 复用 | 2         |
-| O2 | `[name{ fieldId_1, type_kind }, obj { fieldId_2, obj_flagId }]`                      | obj 复用 | 3         |
+| O2 | `[name{ fieldId_1, type_kind }, obj { fieldId_2, obj_flagId }]`                      | obj 复用 | 2         |
 | O3 | `[name{ fieldId_1, type_kind }, obj { fieldId_2, obj_flagId }, age { fieldId_3, type_kind }]` | obj 复用 | 3         |
 
 最终 Trie 树形如下：
