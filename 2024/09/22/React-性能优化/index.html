@@ -1,0 +1,788 @@
+<!DOCTYPE html><html lang="zh-cmn-Hans" prefix="og: http://ogp.me/ns#" class="han-init"><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" /><title>React 性能优化 &mdash; overture</title><link rel="stylesheet" href="https://scriptoverture.github.io/blog/assets/vendor/primer-css/css/primer.css"><link rel="stylesheet" href="https://scriptoverture.github.io/blog/assets/css/components/collection.css"><link rel="stylesheet" href="https://scriptoverture.github.io/blog/assets/css/components/repo-card.css"><link rel="stylesheet" href="https://scriptoverture.github.io/blog/assets/css/sections/repo-list.css"><link rel="stylesheet" href="https://scriptoverture.github.io/blog/assets/css/components/boxed-group.css"><link rel="stylesheet" href="https://scriptoverture.github.io/blog/assets/css/globals/common.css"><link rel="stylesheet" href="https://scriptoverture.github.io/blog/assets/css/globals/responsive.css"><link rel="stylesheet" href="https://scriptoverture.github.io/blog/assets/css/posts/index.css"><link rel="stylesheet" href="https://scriptoverture.github.io/blog/assets/vendor/octicons/octicons/octicons.css"><link rel="stylesheet" href="https://mazhuang.org/rouge-themes/dist/github.css"><link rel="canonical" href="https://scriptoverture.github.io/blog/2024/09/22/React-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96/"><link rel="alternate" type="application/atom+xml" title="overture" href="https://scriptoverture.github.io/blog/feed.xml"><link rel="shortcut icon" href="https://scriptoverture.github.io/blog/favicon.ico"><meta property="og:title" content="React 性能优化"><meta name="keywords" content="React, 性能"><meta name="og:keywords" content="React, 性能"><meta name="description" content="熟悉 React 的同学们都知道，每次数据更新都会重新渲染 fiber 树，匹配渲染优先级组件及其所有子组件都会重新渲染，存在心智负担，可能开发中很多同学会掏出 useMemo，useCallback, memo, pureComponent, sholdComponentUpdate 组合拳来优化避免组件重复渲染。"><meta name="og:description" content="熟悉 React 的同学们都知道，每次数据更新都会重新渲染 fiber 树，匹配渲染优先级组件及其所有子组件都会重新渲染，存在心智负担，可能开发中很多同学会掏出 useMemo，useCallback, memo, pureComponent, sholdComponentUpdate 组合拳来优化避免组件重复渲染。"><meta property="og:url" content="https://scriptoverture.github.io/blog/2024/09/22/React-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96/"><meta property="og:site_name" content="overture"><meta property="og:type" content="article"><meta property="og:locale" content="zh_CN" /><meta property="article:published_time" content="2024-09-22"> <script src="https://scriptoverture.github.io/blog/assets/vendor/jquery/dist/jquery.min.js"></script> <script src="https://scriptoverture.github.io/blog/assets/js/main.js"></script> <script async src="https://www.googletagmanager.com/gtag/js?id=G-Z6VKGSE98P"></script> <script> window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-Z6VKGSE98P'); </script></head><body class="" data-mz=""><header class="site-header"><div class="container"><h1><a href="https://scriptoverture.github.io/blog/" title="overture"><span class="octicon octicon-mark-github"></span> overture</a></h1><button class="collapsed mobile-visible" type="button" onclick="toggleMenu();"> <span class="icon-bar"></span> <span class="icon-bar"></span> <span class="icon-bar"></span> </button><nav class="site-header-nav" role="navigation"> <a href="https://scriptoverture.github.io/blog/" class="site-header-nav-item" target="" title="首页">首页</a> <a href="https://scriptoverture.github.io/blog/categories/" class="site-header-nav-item" target="" title="分类">分类</a> <a href="https://scriptoverture.github.io/blog/archives/" class="mobile-hidden site-header-nav-item" target="" title="归档">归档</a> <a href="https://scriptoverture.github.io/blog/open-source/" class="mobile-hidden site-header-nav-item" target="" title="开源">开源</a> <a href="https://scriptoverture.github.io/blog/fragments/" class="site-header-nav-item" target="" title="片段">片段</a> <a href="https://scriptoverture.github.io/blog/wiki/" class="site-header-nav-item" target="" title="维基">维基</a> <a href="https://scriptoverture.github.io/blog/links/" class="mobile-hidden site-header-nav-item" target="" title="链接">链接</a> <a href="https://scriptoverture.github.io/blog/about/" class="site-header-nav-item" target="" title="关于">关于</a> <a class="mobile-hidden" href="https://scriptoverture.github.io/blog/feed.xml"><span class="octicon octicon-rss" style="color:orange;"></span></a></nav></div></header><section class="collection-head small geopattern" data-pattern-id="React 性能优化"><div class="container"><div class="columns"><div class="column three-fourths"><div class="collection-title"><h1 class="collection-header">React 性能优化</h1><div class="collection-info"> <span class="meta-info"> <span class="octicon octicon-calendar"></span> 2024/09/22 </span> <span class="meta-info"> <span class="octicon octicon-file-directory"></span> <a href="https://scriptoverture.github.io/blog/categories/#React" title="React">React</a> </span> <span class="meta-info"> <span class="octicon octicon-clock"></span> 共 18299 字，约 53 分钟 </span></div></div></div><div class="column one-fourth mobile-hidden"><div class="collection-title"></div></div></div></div></section><section class="container content"><div class="columns"><div class="column three-fourths" ><article class="article-content markdown-body"><p>熟悉 <code class="language-plaintext highlighter-rouge">React</code> 的同学们都知道，每次数据更新都会重新渲染 <code class="language-plaintext highlighter-rouge">fiber</code> 树，匹配渲染优先级组件及其所有子组件都会重新渲染，存在心智负担，可能开发中很多同学会掏出 <code class="language-plaintext highlighter-rouge">useMemo</code>，<code class="language-plaintext highlighter-rouge">useCallback</code>, <code class="language-plaintext highlighter-rouge">memo</code>, <code class="language-plaintext highlighter-rouge">pureComponent</code>, <code class="language-plaintext highlighter-rouge">sholdComponentUpdate</code> 组合拳来优化避免组件重复渲染。</p><h3 id="组件为什么会被重复渲染">组件为什么会被重复渲染？</h3><p>首先来段示例，当 <code class="language-plaintext highlighter-rouge">App</code> 组件触发会影响 <code class="language-plaintext highlighter-rouge">Child</code> 重新渲染。</p><div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">function</span> <span class="nx">Child</span><span class="p">()</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="dl">'</span><span class="s1">Child::render</span><span class="dl">'</span><span class="p">);</span>
+  <span class="k">return</span> <span class="o">&lt;</span><span class="nx">div</span><span class="o">&gt;</span><span class="nx">child</span><span class="o">&lt;</span><span class="sr">/div</span><span class="err">&gt;
+</span><span class="p">}</span>
+
+<span class="nx">funcction</span> <span class="nx">App</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">const</span> <span class="p">[</span><span class="nx">data</span><span class="p">,</span> <span class="nx">setData</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useState</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="o">&lt;&gt;</span>
+      <span class="o">&lt;</span><span class="nx">p</span><span class="o">&gt;</span><span class="p">{</span> <span class="nx">data</span> <span class="p">}</span><span class="o">&lt;</span><span class="sr">/p</span><span class="err">&gt;
+</span>      <span class="o">&lt;</span><span class="nx">button</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">handleClick</span><span class="p">}</span><span class="o">&gt;</span><span class="nx">click</span><span class="o">&lt;</span><span class="sr">/button</span><span class="err">&gt;
+</span>      <span class="o">&lt;</span><span class="nx">Child</span><span class="o">/&gt;</span>
+    <span class="o">&lt;</span><span class="sr">/</span><span class="err">&gt;
+</span>  <span class="p">);</span>
+
+  <span class="kd">function</span> <span class="nx">handleClick</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">setData</span><span class="p">(</span><span class="nx">data</span> <span class="o">=&gt;</span> <span class="nx">data</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div><p><strong>有哪些方法可以避免Child渲染呢？</strong></p><div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">Child1</span> <span class="o">=</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="dl">'</span><span class="s1">Child1::render</span><span class="dl">'</span><span class="p">);</span>
+  <span class="k">return</span> <span class="o">&lt;</span><span class="nx">div</span><span class="o">&gt;</span><span class="nx">child</span><span class="o">&lt;</span><span class="sr">/div</span><span class="err">&gt;
+</span><span class="p">}</span>
+
+<span class="kd">const</span> <span class="nx">child1</span> <span class="o">=</span> <span class="o">&lt;</span><span class="nx">Child1</span><span class="o">/&gt;</span><span class="p">;</span>
+
+<span class="kd">const</span> <span class="nx">Child6</span> <span class="o">=</span> <span class="nx">memo</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="dl">'</span><span class="s1">Child6::render</span><span class="dl">'</span><span class="p">);</span>
+  <span class="k">return</span> <span class="o">&lt;</span><span class="nx">div</span><span class="o">&gt;</span><span class="nx">child6</span><span class="o">&lt;</span><span class="sr">/div</span><span class="err">&gt;
+</span><span class="p">})</span>
+
+<span class="nx">funcction</span> <span class="nx">App</span><span class="p">({</span> <span class="nx">children</span><span class="p">,</span> <span class="nx">render</span> <span class="p">})</span> <span class="p">{</span>
+  <span class="kd">const</span> <span class="p">[</span><span class="nx">data</span><span class="p">,</span> <span class="nx">setData</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useState</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="o">&lt;&gt;</span>
+      <span class="o">&lt;</span><span class="nx">p</span><span class="o">&gt;</span><span class="p">{</span> <span class="nx">data</span> <span class="p">}</span><span class="o">&lt;</span><span class="sr">/p</span><span class="err">&gt;
+</span>      <span class="o">&lt;</span><span class="nx">button</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">handleClick</span><span class="p">}</span><span class="o">&gt;</span><span class="nx">click</span><span class="o">&lt;</span><span class="sr">/button</span><span class="err">&gt;
+</span>      <span class="p">{</span> <span class="nx">child1</span> <span class="p">}</span>  
+      <span class="p">{</span> 
+        <span class="nx">useMemo</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+          <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="dl">'</span><span class="s1">Child2::render</span><span class="dl">'</span><span class="p">);</span>
+          <span class="k">return</span> <span class="o">&lt;</span><span class="nx">div</span><span class="o">&gt;</span><span class="nx">child2</span><span class="o">&lt;</span><span class="sr">/div</span><span class="err">&gt;
+</span>        <span class="p">},</span> <span class="p">[])</span>
+      <span class="p">}</span>
+      <span class="p">{</span>
+        <span class="nx">useState</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+          <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="dl">'</span><span class="s1">Child3::render</span><span class="dl">'</span><span class="p">);</span>
+          <span class="k">return</span> <span class="o">&lt;</span><span class="nx">div</span><span class="o">&gt;</span><span class="nx">child3</span><span class="o">&lt;</span><span class="sr">/div</span><span class="err">&gt;
+</span>        <span class="p">})[</span><span class="mi">0</span><span class="p">]</span>
+      <span class="p">}</span>
+      <span class="p">{</span> <span class="nx">children</span> <span class="p">}</span>
+      <span class="p">{</span> <span class="nx">render</span> <span class="p">}</span>
+      <span class="o">&lt;</span><span class="nx">Child6</span><span class="o">/&gt;</span>
+    <span class="o">&lt;</span><span class="sr">/</span><span class="err">&gt;
+</span>  <span class="p">);</span>
+
+  <span class="kd">function</span> <span class="nx">handleClick</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">setData</span><span class="p">(</span><span class="nx">data</span> <span class="o">=&gt;</span> <span class="nx">data</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">let</span> <span class="nx">child5</span> <span class="o">=</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="dl">'</span><span class="s1">Child5::render</span><span class="dl">'</span><span class="p">);</span>
+    <span class="k">return</span> <span class="o">&lt;</span><span class="nx">div</span><span class="o">&gt;</span><span class="nx">child5</span><span class="o">&lt;</span><span class="sr">/div</span><span class="err">&gt;
+</span><span class="p">}</span>
+
+<span class="o">&lt;</span><span class="nx">App</span> <span class="nx">render</span><span class="o">=</span><span class="p">{</span><span class="nx">child5</span><span class="p">}</span><span class="o">&gt;</span>
+  <span class="p">{</span> <span class="nx">React</span><span class="p">.</span><span class="nx">createElement</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="dl">'</span><span class="s1">Chil4::render</span><span class="dl">'</span><span class="p">);</span>
+    <span class="k">return</span> <span class="o">&lt;</span><span class="nx">div</span><span class="o">&gt;</span><span class="nx">child4</span><span class="o">&lt;</span><span class="sr">/div</span><span class="err">&gt;
+</span>  <span class="p">})</span> <span class="p">}</span>
+<span class="o">&lt;</span><span class="sr">/App</span><span class="err">&gt;
+</span>
+<span class="c1">// 首次渲染</span>
+<span class="nx">print</span> <span class="o">-&gt;</span> <span class="nx">star</span>
+  <span class="nx">Child2</span><span class="p">::</span><span class="nx">render</span>
+  <span class="nx">Child3</span><span class="p">::</span><span class="nx">render</span>
+  <span class="nx">Child1</span><span class="p">::</span><span class="nx">render</span>
+  <span class="nx">Child4</span><span class="p">::</span><span class="nx">render</span>
+  <span class="nx">Child6</span><span class="p">::</span><span class="nx">render</span>
+<span class="nx">print</span> <span class="o">-&gt;</span> <span class="nx">end</span>
+</code></pre></div></div><p>通过点击 <code class="language-plaintext highlighter-rouge">button</code> 可以观察到控制台并无 <code class="language-plaintext highlighter-rouge">Child</code> 打印内容输出, 子组件并没有被重复渲染； 也就说除了常规包裹 <code class="language-plaintext highlighter-rouge">useMemo</code> 与 <code class="language-plaintext highlighter-rouge">memo</code> 外，还有很多其他的方式也可以达到类似效果； 可能会有同学疑惑（后面会有解释）</p><ul><li><code class="language-plaintext highlighter-rouge">children</code> 不是子节点吗，为什么没有重新渲染</li><li><code class="language-plaintext highlighter-rouge">useState</code> 为什么也可以避免 <code class="language-plaintext highlighter-rouge">Child</code> 渲染</li><li>打印顺序是什么鬼？</li></ul><p><code class="language-plaintext highlighter-rouge">React</code> 组件会根据 state(useState|setState), <code class="language-plaintext highlighter-rouge">props</code>, <code class="language-plaintext highlighter-rouge">context</code> 来判断当前 <code class="language-plaintext highlighter-rouge">fiber</code> 是否可以复用 找到源码中 <code class="language-plaintext highlighter-rouge">beginWork</code> 方法， <code class="language-plaintext highlighter-rouge">beginWork</code> 主要用于生成子 <code class="language-plaintext highlighter-rouge">filber</code> 以及打上对应 <code class="language-plaintext highlighter-rouge">flags</code></p><div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">function</span> <span class="nx">beginWork</span><span class="p">(</span>
+  <span class="nx">current</span><span class="p">:</span> <span class="nx">Fiber</span> <span class="o">|</span> <span class="kc">null</span><span class="p">,</span>
+  <span class="nx">workInProgress</span><span class="p">:</span> <span class="nx">Fiber</span><span class="p">,</span>
+  <span class="nx">renderLanes</span><span class="p">:</span> <span class="nx">Lanes</span><span class="p">,</span>
+<span class="p">):</span> <span class="nx">Fiber</span> <span class="o">|</span> <span class="kc">null</span> <span class="p">{</span>
+  <span class="kd">const</span> <span class="nx">updateLanes</span> <span class="o">=</span> <span class="nx">workInProgress</span><span class="p">.</span><span class="nx">lanes</span><span class="p">;</span>
+  <span class="c1">// current 存在 update更新</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">current</span> <span class="o">!==</span> <span class="kc">null</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kd">const</span> <span class="nx">oldProps</span> <span class="o">=</span> <span class="nx">current</span><span class="p">.</span><span class="nx">memoizedProps</span><span class="p">;</span>
+    <span class="kd">const</span> <span class="nx">newProps</span> <span class="o">=</span> <span class="nx">workInProgress</span><span class="p">.</span><span class="nx">pendingProps</span><span class="p">;</span>
+    <span class="c1">// 判断新旧props是否全等 或者 上下文是否有变化</span>
+    <span class="k">if</span> <span class="p">(</span>
+      <span class="nx">oldProps</span> <span class="o">!==</span> <span class="nx">newProps</span> <span class="o">||</span>
+      <span class="nx">hasLegacyContextChanged</span><span class="p">()</span>
+    <span class="p">)</span> <span class="p">{</span>
+      <span class="nx">didReceiveUpdate</span> <span class="o">=</span> <span class="kc">true</span><span class="p">;</span>
+      <span class="c1">// 当渲染优先级不包含workInProgress的优先级，复用旧fiber</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">includesSomeLane</span><span class="p">(</span><span class="nx">renderLanes</span><span class="p">,</span> <span class="nx">updateLanes</span><span class="p">))</span> <span class="p">{</span>
+      <span class="nx">didReceiveUpdate</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span>
+      <span class="p">...</span>
+      <span class="c1">// 复用fiber</span>
+      <span class="k">return</span> <span class="nx">bailoutOnAlreadyFinishedWork</span><span class="p">(</span><span class="nx">current</span><span class="p">,</span> <span class="nx">workInProgress</span><span class="p">,</span> <span class="nx">renderLanes</span><span class="p">);</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+      <span class="k">if</span> <span class="p">((</span><span class="nx">current</span><span class="p">.</span><span class="nx">flags</span> <span class="o">&amp;</span> <span class="nx">ForceUpdateForLegacySuspense</span><span class="p">)</span> <span class="o">!==</span> <span class="nx">NoFlags</span><span class="p">)</span> <span class="p">{</span>
+        <span class="p">...</span>
+        <span class="nx">didReceiveUpdate</span> <span class="o">=</span> <span class="kc">true</span><span class="p">;</span>
+      <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+       <span class="p">...</span>
+        <span class="nx">didReceiveUpdate</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="nx">didReceiveUpdate</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span>
+  <span class="p">}</span>
+
+</code></pre></div></div><p>乍一看不是很合理吗，那么为何App组件更新会导致Child组件刷新呢？</p><p><strong>首先我们得知道workInProgress.pendingProps到底是啥？</strong></p><div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// 源码中</span>
+<span class="kd">const</span> <span class="nx">pendingProps</span> <span class="o">=</span> <span class="nx">element</span><span class="p">.</span><span class="nx">props</span><span class="p">;</span>
+
+<span class="c1">// 那么这个element又是啥呢？</span>
+<span class="c1">// 格式如下</span>
+<span class="p">{</span>
+  <span class="na">_owner</span><span class="p">:</span><span class="kc">null</span>
+  <span class="na">_store</span><span class="p">:{</span><span class="na">validated</span><span class="p">:</span> <span class="kc">true</span><span class="p">}</span>
+  <span class="nx">$</span><span class="na">$typeof</span><span class="p">:</span><span class="nb">Symbol</span><span class="p">(</span><span class="nx">react</span><span class="p">.</span><span class="nx">element</span><span class="p">)</span>
+  <span class="na">key</span><span class="p">:</span><span class="kc">null</span>
+  <span class="na">props</span><span class="p">:{}</span>
+  <span class="nl">ref</span><span class="p">:</span><span class="kc">null</span>
+  <span class="na">type</span><span class="p">:()</span> <span class="o">=&gt;</span> <span class="p">{</span><span class="err">\</span><span class="nx">n</span>  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="dl">'</span><span class="s1">Child::RENDER</span><span class="dl">'</span><span class="p">);</span><span class="err">\</span><span class="nx">n</span>  <span class="k">return</span> <span class="cm">/*#__PURE...
+}
+// 是不是很熟悉，这就是常写得Jsx数据
+// 可以打印看看
+const Child1 = () =&gt; {
+  console.log('Child1::render');
+  return &lt;div&gt;child&lt;/div&gt;;
+};
+
+const child1 = &lt;Child1 /&gt;;
+console.log(child1);
+
+// 换个方式可以证明
+let props1 = child1.props;
+let props2 = child1.props;
+console.log(props1 === props2);
+print -&gt; true
+
+// props3 与 props4 生成得Jsx 不是同一引用因此不相等
+let props3 = (&lt;Child1 /&gt;).props;
+let props4 = (&lt;Child1 /&gt;).props;
+console.log(props3 === props4);
+print -&gt; false
+
+// 这个概念类似
+const a = { "test": 1 };
+const b = { "test": 1'};
+console.log(a === b);
+print -&gt; false
+const c = a; // "c" 仅仅是 "a" 的引用
+console.log(a === c); 
+print -&gt; true
+</span></code></pre></div></div><p>因此当 <code class="language-plaintext highlighter-rouge">App</code> 组件更新时 重新生成 <code class="language-plaintext highlighter-rouge">JSX</code>，<code class="language-plaintext highlighter-rouge">Child</code> 组件对应得 <code class="language-plaintext highlighter-rouge">props</code> 内存地址也发生了变化，故会重新渲染.</p><p>这也就解释了</p><ul><li>同一引用得 <code class="language-plaintext highlighter-rouge">Child1</code> 组件不会受到影响。</li><li><code class="language-plaintext highlighter-rouge">children</code> 与 <code class="language-plaintext highlighter-rouge">render</code> 属性也是一样的, 引用未变。<ul><li><code class="language-plaintext highlighter-rouge">Child5</code> 与 <code class="language-plaintext highlighter-rouge">Child6</code> 组件是在 <code class="language-plaintext highlighter-rouge">App</code> 外部生成的 <code class="language-plaintext highlighter-rouge">JSX</code> 并赋值给 <code class="language-plaintext highlighter-rouge">App</code> 中的 <code class="language-plaintext highlighter-rouge">children</code> 与 <code class="language-plaintext highlighter-rouge">render</code> 属性。</li><li>所以 <code class="language-plaintext highlighter-rouge">App</code> 组件再次渲染子组件便会重新生成 <code class="language-plaintext highlighter-rouge">JSX</code>（换句话说只会影响内部的子元素）</li><li>因为 <code class="language-plaintext highlighter-rouge">App</code> 外层没有变更，因此 <code class="language-plaintext highlighter-rouge">App</code> 不会重新生成 <code class="language-plaintext highlighter-rouge">JSX</code>，<code class="language-plaintext highlighter-rouge">children</code> 与 <code class="language-plaintext highlighter-rouge">render</code> 内存地址固然不变咯。</li></ul></li></ul><h3 id="usememo-memo为何可以避免组件重新渲染">useMemo, memo为何可以避免组件重新渲染?</h3><p>可能大伙都很熟悉这几个 <code class="language-plaintext highlighter-rouge">API</code>， 对于 <code class="language-plaintext highlighter-rouge">useMemo</code> 缓存变量，<code class="language-plaintext highlighter-rouge">memo</code> 包裹的组件浅比较 <code class="language-plaintext highlighter-rouge">props</code> 来判断组件是否需要重新渲染。</p><h4 id="memo">memo</h4><div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="c1">// 项目中很多这么使用的(可能有问题，下面会说)</span>
+<span class="kd">const</span> <span class="nx">Test</span> <span class="o">=</span> <span class="nx">memo</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="o">&lt;</span><span class="nx">div</span><span class="o">&gt;??</span><span class="p">?</span><span class="o">&lt;</span><span class="sr">/div&gt;</span><span class="err">)
+</span><span class="c1">// memo还有第二个参数“手动档”进行新旧props比较</span>
+<span class="kd">const</span> <span class="nx">Test</span> <span class="o">=</span> <span class="nx">memo</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="o">&lt;</span><span class="nx">div</span><span class="o">&gt;??</span><span class="p">?</span><span class="o">&lt;</span><span class="sr">/div&gt;, </span><span class="se">(</span><span class="sr">prev, next</span><span class="se">)</span><span class="sr"> =&gt; prev !== next</span><span class="err">)
+</span>
+<span class="c1">// 那么 memo 是怎么保障组件渲染的呢</span>
+<span class="c1">// 源码 updateMemoComponent 中</span>
+<span class="kd">const</span> <span class="nx">prevProps</span> <span class="o">=</span> <span class="nx">currentChild</span><span class="p">.</span><span class="nx">memoizedProps</span><span class="p">;</span>
+<span class="c1">// compare 为 “手动档” 回调</span>
+<span class="kd">let</span> <span class="nx">compare</span> <span class="o">=</span> <span class="nx">Component</span><span class="p">.</span><span class="nx">compare</span><span class="p">;</span>
+<span class="nx">compare</span> <span class="o">=</span> <span class="nx">compare</span> <span class="o">!==</span> <span class="kc">null</span> <span class="p">?</span> <span class="nx">compare</span> <span class="p">:</span> <span class="nx">shallowEqual</span><span class="p">;</span>
+<span class="k">if</span> <span class="p">(</span><span class="nx">compare</span><span class="p">(</span><span class="nx">prevProps</span><span class="p">,</span> <span class="nx">nextProps</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="nx">current</span><span class="p">.</span><span class="nx">ref</span> <span class="o">===</span> <span class="nx">workInProgress</span><span class="p">.</span><span class="nx">ref</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// 复用 fiber</span>
+  <span class="k">return</span> <span class="nx">bailoutOnAlreadyFinishedWork</span><span class="p">(</span><span class="nx">current</span><span class="p">,</span> <span class="nx">workInProgress</span><span class="p">,</span> <span class="nx">renderLanes</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="c1">// 也就是存在定义的比较函数时使用，否则使用默认比较shallowEqual</span>
+<span class="c1">// 命中则复用不会重新渲染</span>
+</code></pre></div></div><p>所以这也就解释了上面为什么说 <code class="language-plaintext highlighter-rouge">memo</code> 包裹的 <code class="language-plaintext highlighter-rouge">Child6</code> 不会被重新渲染。 再看看默认比较规则 <code class="language-plaintext highlighter-rouge">shallowEqual</code>:</p><ul><li>比较内存</li><li>不是对象</li><li>比较参数长度</li><li>遍历参数比较</li></ul><div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="kd">function</span> <span class="nx">shallowEqual</span><span class="p">(</span><span class="nx">objA</span><span class="p">:</span> <span class="nx">mixed</span><span class="p">,</span> <span class="nx">objB</span><span class="p">:</span> <span class="nx">mixed</span><span class="p">):</span> <span class="nx">boolean</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">is</span><span class="p">(</span><span class="nx">objA</span><span class="p">,</span> <span class="nx">objB</span><span class="p">))</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="kc">true</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="k">if</span> <span class="p">(</span>
+    <span class="k">typeof</span> <span class="nx">objA</span> <span class="o">!==</span> <span class="dl">'</span><span class="s1">object</span><span class="dl">'</span> <span class="o">||</span>
+    <span class="nx">objA</span> <span class="o">===</span> <span class="kc">null</span> <span class="o">||</span>
+    <span class="k">typeof</span> <span class="nx">objB</span> <span class="o">!==</span> <span class="dl">'</span><span class="s1">object</span><span class="dl">'</span> <span class="o">||</span>
+    <span class="nx">objB</span> <span class="o">===</span> <span class="kc">null</span>
+  <span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="kc">false</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="kd">const</span> <span class="nx">keysA</span> <span class="o">=</span> <span class="nb">Object</span><span class="p">.</span><span class="nx">keys</span><span class="p">(</span><span class="nx">objA</span><span class="p">);</span>
+  <span class="kd">const</span> <span class="nx">keysB</span> <span class="o">=</span> <span class="nb">Object</span><span class="p">.</span><span class="nx">keys</span><span class="p">(</span><span class="nx">objB</span><span class="p">);</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="nx">keysA</span><span class="p">.</span><span class="nx">length</span> <span class="o">!==</span> <span class="nx">keysB</span><span class="p">.</span><span class="nx">length</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="kc">false</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="c1">// Test for A's keys different from B.</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kd">let</span> <span class="nx">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="o">&lt;</span> <span class="nx">keysA</span><span class="p">.</span><span class="nx">length</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span>
+      <span class="o">!</span><span class="nx">hasOwnProperty</span><span class="p">.</span><span class="nx">call</span><span class="p">(</span><span class="nx">objB</span><span class="p">,</span> <span class="nx">keysA</span><span class="p">[</span><span class="nx">i</span><span class="p">])</span> <span class="o">||</span>
+      <span class="o">!</span><span class="nx">is</span><span class="p">(</span><span class="nx">objA</span><span class="p">[</span><span class="nx">keysA</span><span class="p">[</span><span class="nx">i</span><span class="p">]],</span> <span class="nx">objB</span><span class="p">[</span><span class="nx">keysA</span><span class="p">[</span><span class="nx">i</span><span class="p">]])</span>
+    <span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="kc">false</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+
+  <span class="k">return</span> <span class="kc">true</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div><h5 id="问-给所有组件都包裹memo合适吗">问: 给所有组件都包裹memo合适吗？</h5><p>上面大家都可以看到 <code class="language-plaintext highlighter-rouge">memo</code> 的好处，但是凡是都有代价的，对比正常的组件多了一层浅比较逻辑不说。 对于参数比较少的组件来说，使用默认规则可能开销不那么大。</p><div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// 举个极端的例子，这要走默认比较不得老要命了😉</span>
+<span class="c1">// 下次看到建议直接打死</span>
+<span class="kd">const</span> <span class="nx">Demo</span> <span class="o">=</span> <span class="nx">memo</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="o">&lt;</span><span class="nx">div</span><span class="o">&gt;</span><span class="nx">demo</span><span class="o">&lt;</span><span class="sr">/div&gt;</span><span class="err">)
+</span>
+<span class="kd">let</span> <span class="nx">records</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="p">...</span><span class="mi">100</span> <span class="nx">arguments</span>
+<span class="p">}</span>
+<span class="o">&lt;</span><span class="nx">Demo</span> <span class="p">{...</span><span class="nx">records</span><span class="p">}</span><span class="sr">/</span><span class="err">&gt;
+</span></code></pre></div></div><h4 id="usememo">useMemo</h4><div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// useMemo 用来缓存原始变量</span>
+<span class="c1">// 举个栗子</span>
+<span class="kd">let</span> <span class="nx">originData</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="na">test</span><span class="p">:</span> <span class="dl">'</span><span class="s1">???</span><span class="dl">'</span><span class="p">,</span>
+<span class="p">};</span>
+
+<span class="kd">const</span> <span class="nx">Test</span> <span class="o">=</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="kd">const</span> <span class="p">[</span><span class="nx">data</span><span class="p">,</span> <span class="nx">setData</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useState</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+  <span class="kd">let</span> <span class="nx">cacheData</span> <span class="o">=</span> <span class="nx">useMemo</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="nx">originData</span><span class="p">,</span> <span class="p">[]);</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">cacheData</span> <span class="o">===</span> <span class="nx">originData</span><span class="p">);</span>
+
+  <span class="k">return</span> <span class="o">&lt;</span><span class="nx">div</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+      <span class="nx">setData</span><span class="p">(</span><span class="nx">data</span> <span class="o">=&gt;</span> <span class="nx">data</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+  <span class="p">}}</span><span class="o">&gt;</span><span class="nx">click</span><span class="o">&lt;</span><span class="sr">/div</span><span class="err">&gt;
+</span><span class="p">}</span>
+
+<span class="c1">// Test 组件每次渲染 都会打印 true</span>
+<span class="c1">// 上面说了&lt;Child/&gt; 就是JSX对象</span>
+<span class="c1">// 所以useMemo也能缓存JSX对象引用,  保障新旧props地址相同</span>
+</code></pre></div></div><h5 id="问为什么usememo可以缓存数据">问：为什么useMemo可以缓存数据？</h5><p>其实可以根据上面的示例猜测一下，（执行回调，缓存回调变量？？） 细说的话这个问题其实和 <code class="language-plaintext highlighter-rouge">Hooks</code> 原理是差不多的。</p><p><strong>首次渲染时的 <code class="language-plaintext highlighter-rouge">useMemo</code>:</strong></p><pre><code class="language-javasccript">export function useMemo&lt;T&gt;(
+  create: () =&gt; T,
+  deps: Array&lt;mixed&gt; | void | null,
+): T {
+  const dispatcher = resolveDispatcher();
+  return dispatcher.useMemo(create, deps);
+}
+// dispatcher.useMemo 最终会调用 mountMemo
+
+function mountMemo&lt;T&gt;(
+  nextCreate: () =&gt; T,
+  deps: Array&lt;mixed&gt; | void | null,
+): T {
+  const hook = mountWorkInProgressHook();
+  const nextDeps = deps === undefined ? null : deps;
+  const nextValue = nextCreate();
+  hook.memoizedState = [nextValue, nextDeps];
+  return nextValue;
+}
+// 可以看到 nextValue (也就是需要缓存的变量或者JSX对象)被存入hook.memoizedState中
+
+
+
+function mountWorkInProgressHook(): Hook {
+  const hook: Hook = {
+    memoizedState: null,
+
+    baseState: null,
+    baseQueue: null,
+    queue: null,
+
+    next: null,
+  };
+  // workInProgressHook 表示组件所创建的hooks链表
+  // 为null的话表示当前hook是该组件的第一个hook
+  if (workInProgressHook === null) {
+    // This is the first hook in the list
+    currentlyRenderingFiber.memoizedState = workInProgressHook = hook;
+  } else {
+    // Append to the end of the list
+    workInProgressHook = workInProgressHook.next = hook;
+  }
+  return workInProgressHook;
+}
+// mountWorkInProgressHook 
+// 创建一个hook
+// 是第一个hook, 赋值memoizedState = workInProgressHook = hook
+// 不是的话就next连接起来
+  // 举个栗子
+  useA(); // workInProgressHook = hookA
+  useB(); // workInProgressHook = hookA.next -&gt; hookB
+
+
+//上面的 currentlyRenderingFiber 在 renderWithHooks 中赋值 workInProgress(当前组件fiber)
+export function renderWithHooks&lt;Props, SecondArg&gt;(
+  current: Fiber | null,
+  workInProgress: Fiber,
+  Component: (p: Props, arg: SecondArg) =&gt; any,
+  props: Props,
+  secondArg: SecondArg,
+  nextRenderLanes: Lanes,
+): any {
+  renderLanes = nextRenderLanes;
+  currentlyRenderingFiber = workInProgress;
+  ...
+  let children = Component(props, secondArg);
+  ...
+  }
+</code></pre><p><strong>再看看update阶段的useMemo</strong></p><div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// dispatcher.useMemo 最终会调用 updateMemo</span>
+<span class="kd">function</span> <span class="nx">updateMemo</span><span class="o">&lt;</span><span class="nx">T</span><span class="o">&gt;</span><span class="p">(</span>
+  <span class="nx">nextCreate</span><span class="p">:</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="nx">T</span><span class="p">,</span>
+  <span class="nx">deps</span><span class="p">:</span> <span class="nb">Array</span><span class="o">&lt;</span><span class="nx">mixed</span><span class="o">&gt;</span> <span class="o">|</span> <span class="k">void</span> <span class="o">|</span> <span class="kc">null</span><span class="p">,</span>
+<span class="p">):</span> <span class="nx">T</span> <span class="p">{</span>
+  <span class="c1">// 当前hook</span>
+  <span class="kd">const</span> <span class="nx">hook</span> <span class="o">=</span> <span class="nx">updateWorkInProgressHook</span><span class="p">();</span>
+  <span class="kd">const</span> <span class="nx">nextDeps</span> <span class="o">=</span> <span class="nx">deps</span> <span class="o">===</span> <span class="kc">undefined</span> <span class="p">?</span> <span class="kc">null</span> <span class="p">:</span> <span class="nx">deps</span><span class="p">;</span>
+  <span class="c1">// 首次渲染缓存的值</span>
+  <span class="kd">const</span> <span class="nx">prevState</span> <span class="o">=</span> <span class="nx">hook</span><span class="p">.</span><span class="nx">memoizedState</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">prevState</span> <span class="o">!==</span> <span class="kc">null</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">nextDeps</span> <span class="o">!==</span> <span class="kc">null</span><span class="p">)</span> <span class="p">{</span>
+      <span class="kd">const</span> <span class="nx">prevDeps</span><span class="p">:</span> <span class="nb">Array</span><span class="o">&lt;</span><span class="nx">mixed</span><span class="o">&gt;</span> <span class="o">|</span> <span class="kc">null</span> <span class="o">=</span> <span class="nx">prevState</span><span class="p">[</span><span class="mi">1</span><span class="p">];</span>
+      <span class="c1">// 比较依赖</span>
+      <span class="k">if</span> <span class="p">(</span><span class="nx">areHookInputsEqual</span><span class="p">(</span><span class="nx">nextDeps</span><span class="p">,</span> <span class="nx">prevDeps</span><span class="p">))</span> <span class="p">{</span>
+        <span class="c1">// 复用旧值</span>
+        <span class="k">return</span> <span class="nx">prevState</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+  <span class="c1">// 计算新值</span>
+  <span class="kd">const</span> <span class="nx">nextValue</span> <span class="o">=</span> <span class="nx">nextCreate</span><span class="p">();</span>
+  <span class="nx">hook</span><span class="p">.</span><span class="nx">memoizedState</span> <span class="o">=</span> <span class="p">[</span><span class="nx">nextValue</span><span class="p">,</span> <span class="nx">nextDeps</span><span class="p">];</span>
+  <span class="k">return</span> <span class="nx">nextValue</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="c1">// updateMemo 整个逻辑还是很简单的</span>
+
+
+
+<span class="c1">// 再看看比较依赖areHookInputsEqual </span>
+<span class="kd">function</span> <span class="nx">areHookInputsEqual</span><span class="p">(</span>
+  <span class="nx">nextDeps</span><span class="p">:</span> <span class="nb">Array</span><span class="o">&lt;</span><span class="nx">mixed</span><span class="o">&gt;</span><span class="p">,</span>
+  <span class="nx">prevDeps</span><span class="p">:</span> <span class="nb">Array</span><span class="o">&lt;</span><span class="nx">mixed</span><span class="o">&gt;</span> <span class="o">|</span> <span class="kc">null</span><span class="p">,</span>
+<span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">prevDeps</span> <span class="o">===</span> <span class="kc">null</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="kc">false</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="k">for</span> <span class="p">(</span><span class="kd">let</span> <span class="nx">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="o">&lt;</span> <span class="nx">prevDeps</span><span class="p">.</span><span class="nx">length</span> <span class="o">&amp;&amp;</span> <span class="nx">i</span> <span class="o">&lt;</span> <span class="nx">nextDeps</span><span class="p">.</span><span class="nx">length</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">is</span><span class="p">(</span><span class="nx">nextDeps</span><span class="p">[</span><span class="nx">i</span><span class="p">],</span> <span class="nx">prevDeps</span><span class="p">[</span><span class="nx">i</span><span class="p">]))</span> <span class="p">{</span>
+      <span class="k">continue</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="kc">false</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="kc">true</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div><p>大家也可以下面例子验证 <code class="language-plaintext highlighter-rouge">useMemo</code> 存储位置，控制台查看 <code class="language-plaintext highlighter-rouge">memoizedState</code> 中 <code class="language-plaintext highlighter-rouge">memo</code> 缓存的数据。</p><div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">function</span> <span class="nx">App</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="o">&lt;&gt;</span>
+      <span class="p">{</span><span class="nx">useMemo</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+        <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="dl">'</span><span class="s1">Child2::render</span><span class="dl">'</span><span class="p">);</span>
+        <span class="k">return</span> <span class="o">&lt;</span><span class="nx">div</span><span class="o">&gt;</span><span class="nx">child2</span><span class="o">&lt;</span><span class="sr">/div&gt;</span><span class="err">;
+</span>      <span class="p">},</span> <span class="p">[])}</span>
+    <span class="o">&lt;</span><span class="sr">/</span><span class="err">&gt;
+</span>  <span class="p">);</span>
+<span class="p">}</span>
+<span class="kd">let</span> <span class="nx">dom</span> <span class="o">=</span> <span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="dl">'</span><span class="s1">root</span><span class="dl">'</span><span class="p">)</span>
+<span class="kd">let</span> <span class="nx">current</span> <span class="o">=</span> <span class="nx">dom</span><span class="p">.</span><span class="nx">__reactContainer$g605vp1tnct</span>
+<span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">current</span><span class="p">.</span><span class="nx">child</span><span class="p">.</span><span class="nx">memoizedState</span><span class="p">.</span><span class="nx">memoizedState</span><span class="p">);</span>
+<span class="nx">print</span> <span class="o">-&gt;</span> <span class="p">[</span><span class="nx">JSX对象</span><span class="p">,</span> <span class="nx">依赖</span><span class="p">]</span>
+</code></pre></div></div><p>所以当 <code class="language-plaintext highlighter-rouge">App</code> 组件再次渲染时，倘若 <code class="language-plaintext highlighter-rouge">useMemo</code> 依赖项没有变更，便会复用(使用上次内存地址，进而新旧 <code class="language-plaintext highlighter-rouge">props</code> 也会全等)。</p><p><strong>那么useMemo 相同效果的好兄弟 “pureComponents” &amp; “sholdComponentUpdate”; 他们的作用真的相等吗？</strong></p><h5 id="purecomponents">pureComponents</h5><p>类组件只需要继承 <code class="language-plaintext highlighter-rouge">pureComponents</code> 便可以避免 <code class="language-plaintext highlighter-rouge">render</code> 渲染，是不是神似 <code class="language-plaintext highlighter-rouge">memo</code> , 那你知道他们的区别吗？</p><div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">class</span> <span class="nx">Test</span> <span class="kd">extends</span> <span class="nx">PureComponent</span> <span class="p">{</span>
+
+    <span class="nx">render</span><span class="p">()</span> <span class="p">{</span>
+        <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="dl">'</span><span class="s1">Testsssssssssss</span><span class="dl">'</span><span class="p">);</span>
+        <span class="k">return</span> <span class="dl">"</span><span class="s2">Test</span><span class="dl">"</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">// 源码中 PureComponent 实现</span>
+<span class="kd">function</span> <span class="nx">PureComponent</span><span class="p">(</span><span class="nx">props</span><span class="p">,</span> <span class="nx">context</span><span class="p">,</span> <span class="nx">updater</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">props</span> <span class="o">=</span> <span class="nx">props</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">context</span> <span class="o">=</span> <span class="nx">context</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">refs</span> <span class="o">=</span> <span class="nx">emptyObject</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">updater</span> <span class="o">=</span> <span class="nx">updater</span> <span class="o">||</span> <span class="nx">ReactNoopUpdateQueue</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">const</span> <span class="nx">pureComponentPrototype</span> <span class="o">=</span> <span class="p">(</span><span class="nx">PureComponent</span><span class="p">.</span><span class="nx">prototype</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">ComponentDummy</span><span class="p">());</span>
+<span class="nx">pureComponentPrototype</span><span class="p">.</span><span class="kd">constructor</span> <span class="o">=</span> <span class="nx">PureComponent</span><span class="p">;</span>
+<span class="c1">// 继承Component</span>
+<span class="nb">Object</span><span class="p">.</span><span class="nx">assign</span><span class="p">(</span><span class="nx">pureComponentPrototype</span><span class="p">,</span> <span class="nx">Component</span><span class="p">.</span><span class="nx">prototype</span><span class="p">);</span>
+<span class="c1">// 这里留意一下 isPureReactComponent 标识</span>
+<span class="nx">pureComponentPrototype</span><span class="p">.</span><span class="nx">isPureReactComponent</span> <span class="o">=</span> <span class="kc">true</span><span class="p">;</span>
+</code></pre></div></div><p>可以在 <code class="language-plaintext highlighter-rouge">updateClassInstance</code> 中看到全貌，省略了部分代码 看上去代码量很多，其实每环逻辑很清晰, 主要为 <code class="language-plaintext highlighter-rouge">componentDidUpdate</code> 和 <code class="language-plaintext highlighter-rouge">getSnapshotBeforeUpdate</code> 添加标记 返回是否需要重新渲染布尔标识（true -&gt; 需要渲染 | false -&gt; 复用）</p><ol><li>判断新旧 <code class="language-plaintext highlighter-rouge">props</code> 与 <code class="language-plaintext highlighter-rouge">data</code> 内存地址是否一致，上下文是否变化<ul><li>没有变化复用放回 <code class="language-plaintext highlighter-rouge">false</code>, 为相关生命周期打添加对应标识</li></ul></li><li>计算 <code class="language-plaintext highlighter-rouge">shouldUpdate</code><ul><li><code class="language-plaintext highlighter-rouge">shouldUpdate</code> 为 <code class="language-plaintext highlighter-rouge">false</code> 时代表复用，为相关生命周期打添加对应标识（与上面 1-a 一致）</li><li><code class="language-plaintext highlighter-rouge">shouldUpdate</code> 为 <code class="language-plaintext highlighter-rouge">true</code> 代表需要重新 <code class="language-plaintext highlighter-rouge">render</code>，存在 <code class="language-plaintext highlighter-rouge">componentWillUpdate</code> or <code class="language-plaintext highlighter-rouge">UNSAFE_componentWillUpdate</code> 执行。</li></ul></li></ol><div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">function</span> <span class="nx">updateClassInstance</span><span class="p">(</span>
+  <span class="nx">current</span><span class="p">:</span> <span class="nx">Fiber</span><span class="p">,</span>
+  <span class="nx">workInProgress</span><span class="p">:</span> <span class="nx">Fiber</span><span class="p">,</span>
+  <span class="nx">ctor</span><span class="p">:</span> <span class="nx">any</span><span class="p">,</span>
+  <span class="nx">newProps</span><span class="p">:</span> <span class="nx">any</span><span class="p">,</span>
+  <span class="nx">renderLanes</span><span class="p">:</span> <span class="nx">Lanes</span><span class="p">,</span>
+<span class="p">):</span> <span class="nx">boolean</span> <span class="p">{</span>
+  <span class="kd">const</span> <span class="nx">instance</span> <span class="o">=</span> <span class="nx">workInProgress</span><span class="p">.</span><span class="nx">stateNode</span><span class="p">;</span>
+
+  <span class="kd">const</span> <span class="nx">unresolvedOldProps</span> <span class="o">=</span> <span class="nx">workInProgress</span><span class="p">.</span><span class="nx">memoizedProps</span><span class="p">;</span>
+  <span class="kd">const</span> <span class="nx">oldProps</span> <span class="o">=</span>
+    <span class="nx">workInProgress</span><span class="p">.</span><span class="nx">type</span> <span class="o">===</span> <span class="nx">workInProgress</span><span class="p">.</span><span class="nx">elementType</span>
+      <span class="p">?</span> <span class="nx">unresolvedOldProps</span>
+      <span class="p">:</span> <span class="nx">resolveDefaultProps</span><span class="p">(</span><span class="nx">workInProgress</span><span class="p">.</span><span class="nx">type</span><span class="p">,</span> <span class="nx">unresolvedOldProps</span><span class="p">);</span>
+  <span class="nx">instance</span><span class="p">.</span><span class="nx">props</span> <span class="o">=</span> <span class="nx">oldProps</span><span class="p">;</span>
+  <span class="kd">const</span> <span class="nx">unresolvedNewProps</span> <span class="o">=</span> <span class="nx">workInProgress</span><span class="p">.</span><span class="nx">pendingProps</span><span class="p">;</span>
+
+  <span class="kd">const</span> <span class="nx">oldContext</span> <span class="o">=</span> <span class="nx">instance</span><span class="p">.</span><span class="nx">context</span><span class="p">;</span>
+  <span class="kd">const</span> <span class="nx">contextType</span> <span class="o">=</span> <span class="nx">ctor</span><span class="p">.</span><span class="nx">contextType</span><span class="p">;</span>
+  <span class="kd">let</span> <span class="nx">nextContext</span> <span class="o">=</span> <span class="nx">emptyContextObject</span><span class="p">;</span>
+  <span class="p">...</span>
+
+  <span class="kd">const</span> <span class="nx">oldState</span> <span class="o">=</span> <span class="nx">workInProgress</span><span class="p">.</span><span class="nx">memoizedState</span><span class="p">;</span>
+  <span class="kd">let</span> <span class="nx">newState</span> <span class="o">=</span> <span class="p">(</span><span class="nx">instance</span><span class="p">.</span><span class="nx">state</span> <span class="o">=</span> <span class="nx">oldState</span><span class="p">);</span>
+  <span class="nx">newState</span> <span class="o">=</span> <span class="nx">workInProgress</span><span class="p">.</span><span class="nx">memoizedState</span><span class="p">;</span>
+
+  <span class="k">if</span> <span class="p">(</span>
+    <span class="nx">unresolvedOldProps</span> <span class="o">===</span> <span class="nx">unresolvedNewProps</span> <span class="o">&amp;&amp;</span>
+    <span class="nx">oldState</span> <span class="o">===</span> <span class="nx">newState</span> <span class="o">&amp;&amp;</span>
+    <span class="o">!</span><span class="nx">hasContextChanged</span><span class="p">()</span> <span class="o">&amp;&amp;</span>
+    <span class="o">!</span><span class="nx">checkHasForceUpdateAfterProcessing</span><span class="p">()</span>
+  <span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="k">typeof</span> <span class="nx">instance</span><span class="p">.</span><span class="nx">componentDidUpdate</span> <span class="o">===</span> <span class="dl">'</span><span class="s1">function</span><span class="dl">'</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">if</span> <span class="p">(</span>
+        <span class="nx">unresolvedOldProps</span> <span class="o">!==</span> <span class="nx">current</span><span class="p">.</span><span class="nx">memoizedProps</span> <span class="o">||</span>
+        <span class="nx">oldState</span> <span class="o">!==</span> <span class="nx">current</span><span class="p">.</span><span class="nx">memoizedState</span>
+      <span class="p">)</span> <span class="p">{</span>
+        <span class="nx">workInProgress</span><span class="p">.</span><span class="nx">flags</span> <span class="o">|=</span> <span class="nx">Update</span><span class="p">;</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="p">(</span><span class="k">typeof</span> <span class="nx">instance</span><span class="p">.</span><span class="nx">getSnapshotBeforeUpdate</span> <span class="o">===</span> <span class="dl">'</span><span class="s1">function</span><span class="dl">'</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">if</span> <span class="p">(</span>
+        <span class="nx">unresolvedOldProps</span> <span class="o">!==</span> <span class="nx">current</span><span class="p">.</span><span class="nx">memoizedProps</span> <span class="o">||</span>
+        <span class="nx">oldState</span> <span class="o">!==</span> <span class="nx">current</span><span class="p">.</span><span class="nx">memoizedState</span>
+      <span class="p">)</span> <span class="p">{</span>
+        <span class="nx">workInProgress</span><span class="p">.</span><span class="nx">flags</span> <span class="o">|=</span> <span class="nx">Snapshot</span><span class="p">;</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="kc">false</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="p">...</span>
+  <span class="c1">// 重新计算 shouldUpdate</span>
+  <span class="c1">// 需要留意 checkShouldComponentUpdate</span>
+  <span class="kd">const</span> <span class="nx">shouldUpdate</span> <span class="o">=</span>
+    <span class="nx">checkHasForceUpdateAfterProcessing</span><span class="p">()</span> <span class="o">||</span>
+    <span class="nx">checkShouldComponentUpdate</span><span class="p">(</span>
+      <span class="nx">workInProgress</span><span class="p">,</span>
+      <span class="nx">ctor</span><span class="p">,</span>
+      <span class="nx">oldProps</span><span class="p">,</span>
+      <span class="nx">newProps</span><span class="p">,</span>
+      <span class="nx">oldState</span><span class="p">,</span>
+      <span class="nx">newState</span><span class="p">,</span>
+      <span class="nx">nextContext</span><span class="p">,</span>
+    <span class="p">);</span>
+  <span class="c1">// 重新渲染 render </span>
+  <span class="c1">// 存在 componentWillUpdate or UNSAFE_componentWillUpdate 执行</span>
+  <span class="c1">// 为 componentDidUpdate and getSnapshotBeforeUpdate 添加标记</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">shouldUpdate</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span>
+      <span class="o">!</span><span class="nx">hasNewLifecycles</span> <span class="o">&amp;&amp;</span>
+      <span class="p">(</span><span class="k">typeof</span> <span class="nx">instance</span><span class="p">.</span><span class="nx">UNSAFE_componentWillUpdate</span> <span class="o">===</span> <span class="dl">'</span><span class="s1">function</span><span class="dl">'</span> <span class="o">||</span>
+        <span class="k">typeof</span> <span class="nx">instance</span><span class="p">.</span><span class="nx">componentWillUpdate</span> <span class="o">===</span> <span class="dl">'</span><span class="s1">function</span><span class="dl">'</span><span class="p">)</span>
+    <span class="p">)</span> <span class="p">{</span>
+      <span class="k">if</span> <span class="p">(</span><span class="k">typeof</span> <span class="nx">instance</span><span class="p">.</span><span class="nx">componentWillUpdate</span> <span class="o">===</span> <span class="dl">'</span><span class="s1">function</span><span class="dl">'</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nx">instance</span><span class="p">.</span><span class="nx">componentWillUpdate</span><span class="p">(</span><span class="nx">newProps</span><span class="p">,</span> <span class="nx">newState</span><span class="p">,</span> <span class="nx">nextContext</span><span class="p">);</span>
+      <span class="p">}</span>
+      <span class="k">if</span> <span class="p">(</span><span class="k">typeof</span> <span class="nx">instance</span><span class="p">.</span><span class="nx">UNSAFE_componentWillUpdate</span> <span class="o">===</span> <span class="dl">'</span><span class="s1">function</span><span class="dl">'</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nx">instance</span><span class="p">.</span><span class="nx">UNSAFE_componentWillUpdate</span><span class="p">(</span><span class="nx">newProps</span><span class="p">,</span> <span class="nx">newState</span><span class="p">,</span> <span class="nx">nextContext</span><span class="p">);</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="p">(</span><span class="k">typeof</span> <span class="nx">instance</span><span class="p">.</span><span class="nx">componentDidUpdate</span> <span class="o">===</span> <span class="dl">'</span><span class="s1">function</span><span class="dl">'</span><span class="p">)</span> <span class="p">{</span>
+      <span class="nx">workInProgress</span><span class="p">.</span><span class="nx">flags</span> <span class="o">|=</span> <span class="nx">Update</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="p">(</span><span class="k">typeof</span> <span class="nx">instance</span><span class="p">.</span><span class="nx">getSnapshotBeforeUpdate</span> <span class="o">===</span> <span class="dl">'</span><span class="s1">function</span><span class="dl">'</span><span class="p">)</span> <span class="p">{</span>
+      <span class="nx">workInProgress</span><span class="p">.</span><span class="nx">flags</span> <span class="o">|=</span> <span class="nx">Snapshot</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="c1">// 复用</span>
+    <span class="c1">// 为 componentDidUpdate and getSnapshotBeforeUpdate 添加标记</span>
+    <span class="k">if</span> <span class="p">(</span><span class="k">typeof</span> <span class="nx">instance</span><span class="p">.</span><span class="nx">componentDidUpdate</span> <span class="o">===</span> <span class="dl">'</span><span class="s1">function</span><span class="dl">'</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">if</span> <span class="p">(</span>
+        <span class="nx">unresolvedOldProps</span> <span class="o">!==</span> <span class="nx">current</span><span class="p">.</span><span class="nx">memoizedProps</span> <span class="o">||</span>
+        <span class="nx">oldState</span> <span class="o">!==</span> <span class="nx">current</span><span class="p">.</span><span class="nx">memoizedState</span>
+      <span class="p">)</span> <span class="p">{</span>
+        <span class="nx">workInProgress</span><span class="p">.</span><span class="nx">flags</span> <span class="o">|=</span> <span class="nx">Update</span><span class="p">;</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="p">(</span><span class="k">typeof</span> <span class="nx">instance</span><span class="p">.</span><span class="nx">getSnapshotBeforeUpdate</span> <span class="o">===</span> <span class="dl">'</span><span class="s1">function</span><span class="dl">'</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">if</span> <span class="p">(</span>
+        <span class="nx">unresolvedOldProps</span> <span class="o">!==</span> <span class="nx">current</span><span class="p">.</span><span class="nx">memoizedProps</span> <span class="o">||</span>
+        <span class="nx">oldState</span> <span class="o">!==</span> <span class="nx">current</span><span class="p">.</span><span class="nx">memoizedState</span>
+      <span class="p">)</span> <span class="p">{</span>
+        <span class="nx">workInProgress</span><span class="p">.</span><span class="nx">flags</span> <span class="o">|=</span> <span class="nx">Snapshot</span><span class="p">;</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="nx">workInProgress</span><span class="p">.</span><span class="nx">memoizedProps</span> <span class="o">=</span> <span class="nx">newProps</span><span class="p">;</span>
+    <span class="nx">workInProgress</span><span class="p">.</span><span class="nx">memoizedState</span> <span class="o">=</span> <span class="nx">newState</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="nx">instance</span><span class="p">.</span><span class="nx">props</span> <span class="o">=</span> <span class="nx">newProps</span><span class="p">;</span>
+  <span class="nx">instance</span><span class="p">.</span><span class="nx">state</span> <span class="o">=</span> <span class="nx">newState</span><span class="p">;</span>
+  <span class="nx">instance</span><span class="p">.</span><span class="nx">context</span> <span class="o">=</span> <span class="nx">nextContext</span><span class="p">;</span>
+
+  <span class="k">return</span> <span class="nx">shouldUpdate</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div><p><code class="language-plaintext highlighter-rouge">checkShouldComponentUpdate</code> 中逻辑非常简单：</p><ol><li>存在 <code class="language-plaintext highlighter-rouge">shouldComponentUpdate</code> 调用（<code class="language-plaintext highlighter-rouge">shouldComponentUpdate</code> 优先级高于 <code class="language-plaintext highlighter-rouge">pureComponents</code>）</li><li>否则判断是否带有 <code class="language-plaintext highlighter-rouge">isPureReactComponent</code> 标识<ul><li>使用默认比较 <code class="language-plaintext highlighter-rouge">shallowEqual</code> (老演员了与上面 <code class="language-plaintext highlighter-rouge">memo</code> 一致)</li><li>除了比较 <code class="language-plaintext highlighter-rouge">props</code> 外还会比较 <code class="language-plaintext highlighter-rouge">state</code> 满足一个条件即可</li></ul></li><li>返回是否渲染状态标识。</li></ol><pre><code class="language-javasccript">function checkShouldComponentUpdate(
+  workInProgress,
+  ctor,
+  oldProps,
+  newProps,
+  oldState,
+  newState,
+  nextContext,
+) {
+  const instance = workInProgress.stateNode;
+  if (typeof instance.shouldComponentUpdate === 'function') {
+    const shouldUpdate = instance.shouldComponentUpdate(
+      newProps,
+      newState,
+      nextContext,
+    );
+
+    return shouldUpdate;
+  }
+
+  if (ctor.prototype &amp;&amp; ctor.prototype.isPureReactComponent) {
+    return (
+      !shallowEqual(oldProps, newProps) || !shallowEqual(oldState, newState)
+    );
+  }
+
+  return true;
+}
+</code></pre><p>上面也验证了 <code class="language-plaintext highlighter-rouge">PureComponents</code> 与 <code class="language-plaintext highlighter-rouge">memo</code> 的差异性:</p><ul><li>比较规则的差异性<ul><li>除了比较 <code class="language-plaintext highlighter-rouge">props</code> 还会比较 <code class="language-plaintext highlighter-rouge">state</code></li><li><code class="language-plaintext highlighter-rouge">shouldComponentUpdate</code> 传参与 <code class="language-plaintext highlighter-rouge">memo</code> 回调也不相同</li></ul></li><li>而 <code class="language-plaintext highlighter-rouge">shouldComponentUpdate</code> 更像是 <code class="language-plaintext highlighter-rouge">memo</code> 的第二个回调<ul><li>优先级高于默认 <code class="language-plaintext highlighter-rouge">shallowEqual</code> 比较</li></ul></li></ul><p>所以这么一看 <code class="language-plaintext highlighter-rouge">memo</code> 像是 <code class="language-plaintext highlighter-rouge">PureComponents</code> + <code class="language-plaintext highlighter-rouge">shouldComponentUpdate</code> 的浓缩版😄。</p><h5 id="shouldupdate-渲染标识是怎么影响渲染的">shouldUpdate 渲染标识是怎么影响渲染的？</h5><p>在 <code class="language-plaintext highlighter-rouge">finishClassComponent</code> 中会根据 <code class="language-plaintext highlighter-rouge">shouldUpdate</code> 标识来判断复用 这个 <code class="language-plaintext highlighter-rouge">bailoutOnAlreadyFinishedWord</code> （也是老演员了，上面复用都有出现,，大家感兴趣可以自行了解，此处不展开）复用 <code class="language-plaintext highlighter-rouge">Filber</code>。</p><div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// 异常</span>
+<span class="kd">const</span> <span class="nx">didCaptureError</span> <span class="o">=</span> <span class="p">(</span><span class="nx">workInProgress</span><span class="p">.</span><span class="nx">flags</span> <span class="o">&amp;</span> <span class="nx">DidCapture</span><span class="p">)</span> <span class="o">!==</span> <span class="nx">NoFlags</span><span class="p">;</span>
+
+<span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">shouldUpdate</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">didCaptureError</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">hasContext</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">invalidateContextProvider</span><span class="p">(</span><span class="nx">workInProgress</span><span class="p">,</span> <span class="nx">Component</span><span class="p">,</span> <span class="kc">false</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="c1">// 复用</span>
+  <span class="k">return</span> <span class="nx">bailoutOnAlreadyFinishedWork</span><span class="p">(</span><span class="nx">current</span><span class="p">,</span> <span class="nx">workInProgress</span><span class="p">,</span> <span class="nx">renderLanes</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="c1">// 存在异常</span>
+<span class="k">if</span> <span class="p">(</span>
+    <span class="nx">didCaptureError</span> <span class="o">&amp;&amp;</span>
+    <span class="k">typeof</span> <span class="nx">Component</span><span class="p">.</span><span class="nx">getDerivedStateFromError</span> <span class="o">!==</span> <span class="dl">'</span><span class="s1">function</span><span class="dl">'</span>
+  <span class="p">)</span> <span class="p">{</span>
+    <span class="nx">nextChildren</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="nx">enableProfilerTimer</span><span class="p">)</span> <span class="p">{</span>
+      <span class="nx">stopProfilerTimerIfRunning</span><span class="p">(</span><span class="nx">workInProgress</span><span class="p">);</span>
+    <span class="p">}</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+      <span class="c1">// 重新 render</span>
+      <span class="nx">nextChildren</span> <span class="o">=</span> <span class="nx">instance</span><span class="p">.</span><span class="nx">render</span><span class="p">();</span>
+  <span class="p">}</span>
+  <span class="p">...</span>
+</code></pre></div></div><p>好现在在回溯之前的问题: 给所有的 <code class="language-plaintext highlighter-rouge">Class</code> 组件包裹 <code class="language-plaintext highlighter-rouge">PureComponents</code> 合适吗？</p><blockquote><p>其实与 上面给所有组件包裹 <code class="language-plaintext highlighter-rouge">memo</code> 的问题是一样的，甚至 <code class="language-plaintext highlighter-rouge">PureComponents</code> 默认比较某些情况性能还是比 <code class="language-plaintext highlighter-rouge">memo</code> 默认比较更差，比如100+的新旧 <code class="language-plaintext highlighter-rouge">props</code> 都相等时, <code class="language-plaintext highlighter-rouge">会遍历比较一次后又会遍历比较新旧state</code>, 倘若 <code class="language-plaintext highlighter-rouge">state</code> 也是100+ 呢？🤪</p></blockquote><h4 id="其他优化">其他优化</h4><p>项目中经常可以看到组件里写组件的方式，这里举例并不是说这样写不行，对于某些场景会有性能差异。</p><div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">Item2</span> <span class="o">=</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="nx">useEffect</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+        <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="dl">'</span><span class="s1">Item2 is Mount</span><span class="dl">'</span><span class="p">)</span>
+    <span class="p">},</span> <span class="p">[]);</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="dl">'</span><span class="s1">Item2 is Render</span><span class="dl">'</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="o">&lt;</span><span class="nx">p</span><span class="o">&gt;</span><span class="nx">Item</span><span class="o">------&lt;</span><span class="sr">/p</span><span class="err">&gt;
+</span>    <span class="p">);</span>
+  <span class="p">}</span>
+
+<span class="kd">function</span> <span class="nx">App</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">const</span> <span class="p">[</span><span class="nx">data</span><span class="p">,</span> <span class="nx">setData</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useState</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+  <span class="kd">const</span> <span class="nx">Item</span> <span class="o">=</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="nx">useEffect</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+        <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="dl">'</span><span class="s1">Item is Mount</span><span class="dl">'</span><span class="p">)</span>
+    <span class="p">},</span> <span class="p">[]);</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="dl">'</span><span class="s1">Item is Render</span><span class="dl">'</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="o">&lt;</span><span class="nx">p</span><span class="o">&gt;</span><span class="nx">Item</span><span class="o">------&lt;</span><span class="sr">/p</span><span class="err">&gt;
+</span>    <span class="p">);</span>
+  <span class="p">}</span>
+  
+  <span class="k">return</span> <span class="p">(</span>
+      <span class="o">&lt;</span><span class="nx">div</span><span class="o">&gt;</span>
+        <span class="p">{</span>
+            <span class="nb">Array</span><span class="p">.</span><span class="k">from</span><span class="p">({</span><span class="na">length</span><span class="p">:</span> <span class="mi">10</span><span class="p">}).</span><span class="nx">map</span><span class="p">((</span><span class="nx">_</span><span class="p">,</span> <span class="nx">index</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="o">&lt;</span><span class="nx">Item</span> <span class="nx">key</span><span class="o">=</span><span class="p">{</span><span class="nx">index</span><span class="p">}</span><span class="sr">/&gt;</span><span class="err">)
+</span>        <span class="p">}</span>
+        <span class="p">{</span>
+            <span class="nb">Array</span><span class="p">.</span><span class="k">from</span><span class="p">({</span><span class="na">length</span><span class="p">:</span> <span class="mi">10</span><span class="p">}).</span><span class="nx">map</span><span class="p">((</span><span class="nx">_</span><span class="p">,</span> <span class="nx">index</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="o">&lt;</span><span class="nx">Item2</span> <span class="nx">key</span><span class="o">=</span><span class="p">{</span><span class="nx">index</span><span class="p">}</span><span class="sr">/&gt;</span><span class="err">)
+</span>        <span class="p">}</span>
+        <span class="o">&lt;</span><span class="nx">button</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">hanldeClick</span><span class="p">}</span><span class="o">&gt;</span><span class="nx">莫碍老子</span><span class="o">&lt;</span><span class="sr">/button</span><span class="err">&gt;
+</span>      <span class="o">&lt;</span><span class="sr">/div</span><span class="err">&gt;
+</span>  <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="o">--------------------</span>
+<span class="nx">每当点击触发App更新时</span><span class="p">,</span> <span class="nx">打印输出如下</span>
+<span class="nx">click</span> <span class="mi">1</span><span class="nx">次</span>
+<span class="nx">print</span> <span class="o">-&gt;</span>
+  <span class="nx">Item</span> <span class="nx">is</span> <span class="nx">Render</span>
+  <span class="nx">Item2</span> <span class="nx">is</span> <span class="nx">Render</span>
+  <span class="nx">Item2</span> <span class="nx">is</span> <span class="nx">Mount</span>
+<span class="nx">click</span> <span class="mi">2</span><span class="nx">次</span>
+<span class="nx">print</span> <span class="o">-&gt;</span>
+  <span class="nx">Item</span> <span class="nx">is</span> <span class="nx">Render</span>
+  <span class="nx">Item2</span> <span class="nx">is</span> <span class="nx">Render</span>
+  <span class="nx">Item2</span> <span class="nx">is</span> <span class="nx">Mount</span>
+  <span class="nx">Item</span> <span class="nx">is</span> <span class="nx">Render</span>
+  <span class="nx">Item2</span> <span class="nx">is</span> <span class="nx">Render</span>
+  <span class="nx">Item2</span> <span class="nx">is</span> <span class="nx">Mount</span>
+</code></pre></div></div><p>每当点击时。你会发现每次 <code class="language-plaintext highlighter-rouge">Item</code> 组件内的 <code class="language-plaintext highlighter-rouge">useEffect</code> 都会重新执行， 而 <code class="language-plaintext highlighter-rouge">Item2</code> 组件不会这是为何？</p><ul><li>唉最开始不是说，<code class="language-plaintext highlighter-rouge">App</code> 组件更新，子组件的 <code class="language-plaintext highlighter-rouge">JSX</code> 都会重新创建，导致内存地址不同，进而渲染子组件<ul><li>按照这个逻辑来说，<code class="language-plaintext highlighter-rouge">Item</code> 与 <code class="language-plaintext highlighter-rouge">Item2</code> 组件不应该会有差异才对呀</li></ul></li><li>看上去 <code class="language-plaintext highlighter-rouge">Item</code> 组件每次都初始化了一般，这是为何？</li></ul><p>这个解释起来有点麻烦，需要了解 <code class="language-plaintext highlighter-rouge">Diff</code> ， <code class="language-plaintext highlighter-rouge">Hooks 原理</code>以及 <code class="language-plaintext highlighter-rouge">commit渲染流</code>。</p><p>在 <code class="language-plaintext highlighter-rouge">reconcileChildrenArray</code> （也叫 <code class="language-plaintext highlighter-rouge">Array Diff</code>）-&gt; <code class="language-plaintext highlighter-rouge">updateSlot</code> -&gt; <code class="language-plaintext highlighter-rouge">updateElement</code>中 可以找到想要的答案。</p><pre><code class="language-javasript">function updateElement(
+    returnFiber: Fiber,
+    current: Fiber | null,
+    element: ReactElement,
+    lanes: Lanes,
+  ): Fiber {
+    if (current !== null) {
+      if (
+        current.elementType === element.type
+      ) {
+        // 克隆复用 Fiber
+        const existing = useFiber(current, element.props);
+        existing.ref = coerceRef(returnFiber, current, element);
+        existing.return = returnFiber;
+        return existing;
+      } else if (enableBlocksAPI &amp;&amp; current.tag === Block) {
+        ...
+      }
+    }
+    // 重新创建 Fiber
+    const created = createFiberFromElement(element, returnFiber.mode, lanes);
+    created.ref = coerceRef(returnFiber, current, element);
+    created.return = returnFiber;
+    return created;
+  }
+</code></pre><p>上面只需要留意 <code class="language-plaintext highlighter-rouge">current.elementType === element.type</code></p><ul><li><p><code class="language-plaintext highlighter-rouge">current</code> 表示旧的 <code class="language-plaintext highlighter-rouge">Fiber</code> 单元， <code class="language-plaintext highlighter-rouge">element</code> 也就是最开始介绍过的 <code class="language-plaintext highlighter-rouge">JSX</code> 对象，那么这个逻辑就表示判断 Item 组件引用地址，如果相同克隆复用 <code class="language-plaintext highlighter-rouge">Fiber</code>, 不同便会新增 <code class="language-plaintext highlighter-rouge">Fiber</code>;</p></li><li><p>而对于 <code class="language-plaintext highlighter-rouge">hooks</code> 分为俩个阶段，首次渲染初始化创建 <code class="language-plaintext highlighter-rouge">hooks</code> 链表，以及 <code class="language-plaintext highlighter-rouge">update</code> 阶段移动链表获取当前每个对应的 <code class="language-plaintext highlighter-rouge">hook</code> 计算结果。而 <code class="language-plaintext highlighter-rouge">hooks</code> 链表被挂载在组件的 <code class="language-plaintext highlighter-rouge">Fiber</code> 上。 因此当重新创建 <code class="language-plaintext highlighter-rouge">Fiber</code> 时，上次初始化的 <code class="language-plaintext highlighter-rouge">hooks</code> 链表并没有得到保留，进而 <code class="language-plaintext highlighter-rouge">renderWithHooks</code> 再次进入执行 <code class="language-plaintext highlighter-rouge">Item</code> 组件时，任然是创建 <code class="language-plaintext highlighter-rouge">Hooks链表</code>，<code class="language-plaintext highlighter-rouge">commit</code> 阶段调度 （这里后续文章会说明）。</p></li><li><p>这也就解释了为什么 <code class="language-plaintext highlighter-rouge">Item</code> 组件会每次都会执行 <code class="language-plaintext highlighter-rouge">useEffect</code> 回调，这里差异化除了创建 <code class="language-plaintext highlighter-rouge">Fiber</code> 的开销外，如果存在 <code class="language-plaintext highlighter-rouge">Hooks</code> 还有 <code class="language-plaintext highlighter-rouge">Hooks</code> 链表每次创建的开销。</p></li></ul><h5 id="把逻辑全套在setdata会有什么问题">把逻辑全套在setData会有什么问题？</h5><p>可能会觉得不会有影响，因为执行点击回调时 从点击到视图改变时间维度不会因为你将逻辑抽离而改变，不过是逻辑执行时机的改变：</p><ul><li>一个是点击回调执行逻辑后设置值。</li><li>一个是传入回调后到 <code class="language-plaintext highlighter-rouge">renderWithHooks</code>， 调用 <code class="language-plaintext highlighter-rouge">App component</code>, <code class="language-plaintext highlighter-rouge">hooks update</code> 计算值的差别。 emmm, 你这说确实没错，倘若你开启了并发模式，那便会有差异了（可以想想）</li></ul><div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// 举个栗子</span>
+<span class="c1">// 如果一个hooks 有多个update 单元</span>
+<span class="c1">// 这里的lang 表示优先级, action 表示对应需要计算的值</span>
+<span class="nx">hooks</span> <span class="o">-&gt;</span> <span class="nx">queue</span> <span class="o">-&gt;</span> 
+              <span class="nx">update1</span> <span class="o">-&gt;</span> <span class="nx">update2</span> <span class="o">-&gt;</span>             <span class="nx">update3</span>
+              <span class="nx">lang</span><span class="o">=</span><span class="mi">3</span>     <span class="nx">lang</span><span class="o">=</span><span class="mi">1</span>                 <span class="nx">lang</span><span class="o">=</span><span class="mi">3</span>
+              <span class="nx">action</span><span class="o">=</span><span class="mi">1</span>   <span class="nx">action</span><span class="o">=</span><span class="p">(</span><span class="nx">d</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="nx">d</span> <span class="o">+</span> <span class="mi">1</span>    <span class="nx">action</span><span class="o">=</span><span class="p">(</span><span class="nx">d</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="mi">100</span><span class="o">+</span><span class="nx">more</span>
+
+<span class="c1">// 可以看到 update3 为逻辑回调 </span>
+<span class="c1">// 假设当前渲染优先级为3, 那么本次满足条件应该执行的是 update1 + update3</span>
+
+<span class="nx">遍历update链表</span>
+<span class="nx">update1</span> <span class="o">-&gt;</span> <span class="nx">update2</span> <span class="o">-&gt;</span> <span class="nx">update3</span>
+  <span class="mi">1</span>
+  <span class="o">^</span>
+<span class="nx">update1满足渲染条件</span>
+<span class="nx">newState</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="nx">newBaseState</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+
+<span class="nx">update1</span> <span class="o">-&gt;</span> <span class="nx">update2</span> <span class="o">-&gt;</span> <span class="nx">update3</span>
+            <span class="nx">d</span> <span class="o">=&gt;</span> <span class="nx">d</span> <span class="o">+</span> <span class="mi">1</span>
+              <span class="o">^</span>
+<span class="nx">update2不满足渲染条件</span>
+<span class="nx">baseFirst</span> <span class="o">=</span> <span class="nx">update2</span>
+<span class="nx">newState</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="nx">newBaseState</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+
+
+<span class="nx">update1</span> <span class="o">-&gt;</span> <span class="nx">update2</span> <span class="o">-&gt;</span> <span class="nx">update3</span>
+                      <span class="nx">d</span> <span class="o">=&gt;</span> <span class="mi">100</span><span class="nx">more</span>
+                        <span class="o">^</span>
+<span class="nx">update3满足渲染条件</span>
+<span class="nx">baseFirst</span> <span class="o">=</span> <span class="nx">update2</span> <span class="o">-&gt;</span> <span class="nx">update3</span>
+<span class="nx">newState</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="mi">100</span><span class="nx">more</span> <span class="nx">的结果</span><span class="p">;</span>
+<span class="nx">newBaseState</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+
+<span class="nx">那么页面上data会暂时展示</span> <span class="nx">newState的结果</span><span class="err">。</span>
+<span class="nx">下次更新会执行上次跳过的链表以newBaseState为基准</span><span class="p">,</span> <span class="nx">baseFirst</span><span class="err">（</span><span class="nx">update2</span> <span class="o">-&gt;</span> <span class="nx">update3</span><span class="err">）</span>
+<span class="nx">因此你会发现</span><span class="err">，</span><span class="nx">update3</span> <span class="nx">这个逻辑回调单元被执行计算了俩次</span>
+</code></pre></div></div><p>至于hooks链表计算详细流程有机会后续文章补充😎</p><h4 id="usecontent-不正当使用">useContent 不正当使用</h4><p>这里给个结论，具体参考 <code class="language-plaintext highlighter-rouge">useContent</code> 章节; 当上下文更新时会额外深度优先遍历 <code class="language-plaintext highlighter-rouge">Fiber</code> 匹配消费者的 <code class="language-plaintext highlighter-rouge">Context</code>, 因此当 <code class="language-plaintext highlighter-rouge">Provider</code> 嵌套的内容越多（比如根元素上），遍历的成本就越高；组件内耦合使用更为合适。</p><p><strong>那么有什么合适的方式大范围传值呢?</strong></p><p>用过 <code class="language-plaintext highlighter-rouge">Vue</code> 的同学都知道 <code class="language-plaintext highlighter-rouge">MVVM</code> 的原理，对属性进行劫持，在 <code class="language-plaintext highlighter-rouge">VNode</code> 创建阶段获取属性，为其添加对应组件的 <code class="language-plaintext highlighter-rouge">updateComponent</code>，属性更新 <code class="language-plaintext highlighter-rouge">setter</code> 调度任务执行 <code class="language-plaintext highlighter-rouge">updateComponent</code> 创建 <code class="language-plaintext highlighter-rouge">VNode Tree</code> 比较更新视图。</p><p>通过结合 <code class="language-plaintext highlighter-rouge">Proxy</code>， 就可以再状态变更时收集所有的消费者，批量更新 （市面上也有相关的库自行了解）。</p><p><strong>小demo</strong></p><div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">function</span> <span class="nx">Store</span><span class="p">(</span><span class="nx">data</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">data</span> <span class="o">=</span> <span class="nx">data</span><span class="p">;</span>
+    <span class="kd">let</span> <span class="nx">id</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="kd">let</span> <span class="nx">promise</span> <span class="o">=</span> <span class="nb">Promise</span><span class="p">.</span><span class="nx">resolve</span><span class="p">();</span>
+    <span class="kd">let</span> <span class="nx">lineComponent</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">forceUpdate</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
+    <span class="kd">let</span> <span class="nx">updateMap</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
+    <span class="kd">let</span> <span class="nx">proxy</span> <span class="o">=</span> <span class="k">new</span> <span class="nb">Proxy</span><span class="p">(</span><span class="nx">data</span><span class="p">,</span> <span class="p">{</span>
+      <span class="kd">get</span><span class="p">(</span><span class="nx">obj</span><span class="p">,</span> <span class="nx">prop</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nx">componentMap</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nx">componentMap</span><span class="p">.</span><span class="nx">has</span><span class="p">(</span><span class="nx">lineComponent</span><span class="p">))</span> <span class="p">{</span>
+                <span class="kd">let</span> <span class="nx">list</span> <span class="o">=</span> <span class="nx">componentMap</span><span class="p">.</span><span class="kd">get</span><span class="p">(</span><span class="nx">lineComponent</span><span class="p">);</span>
+                <span class="nx">list</span><span class="p">.</span><span class="nx">add</span><span class="p">(</span><span class="nx">prop</span><span class="p">);</span>
+            <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+                <span class="nx">componentMap</span><span class="p">.</span><span class="kd">set</span><span class="p">(</span><span class="nx">lineComponent</span><span class="p">,</span> <span class="k">new</span> <span class="nb">Set</span><span class="p">([</span><span class="nx">prop</span><span class="p">]));</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+        
+        <span class="k">return</span> <span class="nx">obj</span><span class="p">[</span><span class="nx">prop</span><span class="p">];</span>
+      <span class="p">},</span>
+      <span class="na">set</span><span class="p">:</span> <span class="p">(</span><span class="nx">target</span><span class="p">,</span> <span class="nx">key</span><span class="p">,</span> <span class="nx">value</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nx">target</span><span class="p">[</span><span class="nx">key</span><span class="p">]</span> <span class="o">!=</span> <span class="nx">value</span> <span class="o">&amp;&amp;</span> <span class="nx">updateMap</span><span class="p">)</span> <span class="p">{</span>
+            <span class="nx">updateMap</span><span class="p">.</span><span class="kd">set</span><span class="p">(</span><span class="nx">key</span><span class="p">,</span> <span class="p">[</span><span class="nx">target</span><span class="p">[</span><span class="nx">key</span><span class="p">],</span> <span class="nx">value</span><span class="p">])</span>
+            <span class="nx">target</span><span class="p">[</span><span class="nx">key</span><span class="p">]</span> <span class="o">=</span> <span class="nx">value</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="kc">true</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">});</span>
+    <span class="kd">let</span> <span class="nx">componentMap</span> <span class="o">=</span> <span class="k">new</span> <span class="nb">Map</span><span class="p">();</span>
+
+    <span class="k">this</span><span class="p">.</span><span class="nx">useUpdate</span> <span class="o">=</span> <span class="kd">function</span> <span class="nx">useUpdate</span><span class="p">()</span> <span class="p">{</span>
+        <span class="kd">let</span> <span class="p">[</span><span class="nx">_</span><span class="p">,</span> <span class="kd">set</span><span class="p">]</span> <span class="o">=</span> <span class="nx">React</span><span class="p">.</span><span class="nx">useState</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+        <span class="k">this</span><span class="p">.</span><span class="nx">forceUpdate</span> <span class="o">=</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="kd">set</span><span class="p">(</span><span class="nx">a</span> <span class="o">=&gt;</span> <span class="nx">a</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+        <span class="k">return</span> <span class="p">(</span><span class="nx">key</span><span class="p">,</span> <span class="nx">val</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+            <span class="nx">updateMap</span> <span class="o">=</span> <span class="k">new</span> <span class="nb">Map</span><span class="p">();</span>
+            <span class="nx">proxy</span><span class="p">[</span><span class="nx">key</span><span class="p">]</span> <span class="o">=</span> <span class="nx">val</span><span class="p">;</span>
+            <span class="nx">promise</span><span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">forceUpdate</span><span class="p">);</span>
+        <span class="p">};</span>
+    <span class="p">}</span>
+  
+    <span class="k">this</span><span class="p">.</span><span class="nx">useStore</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">cb</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nx">cb</span><span class="p">(</span><span class="nx">proxy</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">Provider</span> <span class="o">=</span> <span class="kd">function</span> <span class="nx">Provider</span><span class="p">({</span> <span class="nx">value</span><span class="p">,</span> <span class="nx">children</span> <span class="p">})</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="p">(</span>
+        <span class="o">&lt;&gt;</span>
+          <span class="p">{</span> <span class="nx">children</span> <span class="p">}</span>
+        <span class="o">&lt;</span><span class="sr">/</span><span class="err">&gt;
+</span>      <span class="p">);</span>
+    <span class="p">}</span>
+    
+    <span class="kd">let</span> <span class="nx">defaultEqual</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">equal</span><span class="p">,</span> <span class="nx">prev</span><span class="p">,</span> <span class="nx">next</span><span class="p">)</span> <span class="p">{</span>
+        <span class="kd">let</span> <span class="nx">list</span> <span class="o">=</span> <span class="nx">componentMap</span><span class="p">.</span><span class="kd">get</span><span class="p">(</span><span class="nx">lineComponent</span><span class="p">)</span> <span class="o">||</span> <span class="p">[];</span>
+        
+        <span class="k">for</span> <span class="p">(</span><span class="kd">let</span> <span class="nx">i</span> <span class="k">of</span> <span class="nx">list</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nx">updateMap</span> <span class="o">&amp;&amp;</span> <span class="nx">updateMap</span><span class="p">.</span><span class="nx">has</span><span class="p">(</span><span class="nx">i</span><span class="p">))</span> <span class="p">{</span>
+                <span class="k">return</span> <span class="kc">false</span><span class="p">;</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nx">equal</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">return</span> <span class="nx">equal</span><span class="p">(</span><span class="nx">prev</span><span class="p">,</span> <span class="nx">next</span><span class="p">);</span>
+        <span class="p">}</span>
+
+        <span class="k">for</span> <span class="p">(</span><span class="kd">let</span> <span class="nx">i</span> <span class="k">in</span> <span class="nx">next</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nb">Object</span><span class="p">.</span><span class="nx">is</span><span class="p">(</span><span class="nx">next</span><span class="p">[</span><span class="nx">i</span><span class="p">],</span> <span class="nx">prev</span><span class="p">[</span><span class="nx">i</span><span class="p">]))</span> <span class="p">{</span>
+                <span class="k">continue</span><span class="p">;</span>
+            <span class="p">}</span>
+            <span class="k">return</span> <span class="kc">false</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="kc">true</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">Component</span> <span class="o">=</span> <span class="p">(</span><span class="nx">callback</span><span class="p">,</span> <span class="nx">equal</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+      <span class="nx">id</span><span class="o">+=</span><span class="mi">1</span><span class="p">;</span>
+      <span class="nx">lineComponent</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
+      <span class="kd">let</span> <span class="nx">JSX</span> <span class="o">=</span> <span class="nx">React</span><span class="p">.</span><span class="nx">memo</span><span class="p">(</span><span class="nx">callback</span><span class="p">,</span> <span class="nx">defaultEqual</span><span class="p">.</span><span class="nx">bind</span><span class="p">(</span><span class="kc">null</span><span class="p">,</span> <span class="nx">equal</span><span class="p">));</span>
+      <span class="nx">lineComponent</span> <span class="o">=</span> <span class="nx">JSX</span><span class="p">.</span><span class="nx">type</span><span class="p">;</span>
+      <span class="k">return</span> <span class="nx">JSX</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+</code></pre></div></div><p>使用</p><div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">let</span> <span class="nx">store</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Store</span><span class="p">({</span>
+  <span class="na">name</span><span class="p">:</span> <span class="dl">'</span><span class="s1">wujie</span><span class="dl">'</span><span class="p">,</span>
+  <span class="na">age</span><span class="p">:</span> <span class="dl">'</span><span class="s1">2-</span><span class="dl">'</span>
+<span class="p">})</span>
+
+<span class="kd">const</span> <span class="nx">Demo</span> <span class="o">=</span> <span class="nx">store</span><span class="p">.</span><span class="nx">Component</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="kd">let</span> <span class="p">{</span> <span class="nx">name</span><span class="p">,</span> <span class="nx">age</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">store</span><span class="p">.</span><span class="nx">useStore</span><span class="p">((</span><span class="nx">data</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">({</span>
+        <span class="na">name</span><span class="p">:</span> <span class="nx">data</span><span class="p">.</span><span class="nx">name</span><span class="p">,</span>
+        <span class="na">age</span><span class="p">:</span> <span class="nx">data</span><span class="p">.</span><span class="nx">age</span>
+    <span class="p">}));</span>
+    <span class="kd">let</span> <span class="kd">set</span> <span class="o">=</span> <span class="nx">store</span><span class="p">.</span><span class="nx">useUpdate</span><span class="p">();</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="o">&lt;</span><span class="nx">div</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+            <span class="kd">set</span><span class="p">(</span><span class="dl">'</span><span class="s1">name</span><span class="dl">'</span><span class="p">,</span><span class="mi">11</span><span class="p">)</span>
+            <span class="kd">set</span><span class="p">(</span><span class="dl">'</span><span class="s1">name</span><span class="dl">'</span><span class="p">,</span><span class="mi">33</span><span class="p">)</span>
+            <span class="kd">set</span><span class="p">(</span><span class="dl">'</span><span class="s1">age</span><span class="dl">'</span><span class="p">,</span><span class="mi">50</span><span class="p">)</span>
+        <span class="p">}}</span><span class="o">&gt;</span><span class="nx">data</span> <span class="o">---</span> <span class="p">{</span> <span class="nx">name</span> <span class="p">}</span><span class="o">--</span><span class="p">{</span><span class="nx">age</span><span class="p">}</span><span class="o">&lt;</span><span class="sr">/div</span><span class="err">&gt;
+</span>    <span class="p">);</span>
+<span class="p">})</span>
+
+<span class="kd">const</span> <span class="nx">root</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="o">&lt;</span><span class="nx">store</span><span class="p">.</span><span class="nx">Provider</span><span class="o">&gt;</span>
+        <span class="p">{</span>
+            <span class="nx">React</span><span class="p">.</span><span class="nx">createElement</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+                <span class="kd">let</span> <span class="p">[</span><span class="nx">a</span><span class="p">,</span> <span class="nx">b</span><span class="p">]</span> <span class="o">=</span> <span class="nx">React</span><span class="p">.</span><span class="nx">useState</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+                <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="dl">'</span><span class="s1">render.....</span><span class="dl">'</span><span class="p">)</span>
+                <span class="k">return</span> <span class="p">(</span>
+                    <span class="o">&lt;</span><span class="nx">div</span><span class="o">&gt;</span>
+                        <span class="o">&lt;</span><span class="nx">p</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{()</span> <span class="o">=&gt;</span> <span class="nx">b</span><span class="p">(</span><span class="nx">a</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)}</span><span class="o">&gt;</span><span class="nx">a</span><span class="o">---</span><span class="p">{</span><span class="nx">a</span><span class="p">}</span><span class="o">&lt;</span><span class="sr">/p</span><span class="err">&gt;
+</span>                        <span class="o">&lt;</span><span class="nx">Demo</span><span class="o">/&gt;</span>
+                    <span class="o">&lt;</span><span class="sr">/div</span><span class="err">&gt;
+</span>                <span class="p">);</span>
+            <span class="p">})</span>
+        <span class="p">}</span>
+    <span class="o">&lt;</span><span class="sr">/store.Provider</span><span class="err">&gt;
+</span><span class="p">)</span>
+</code></pre></div></div><div style="margin-top:2em;padding:0 1.5em;border:1px solid #d3d3d3;background-color:#deebf7"><h3>文档信息</h3><ul><li>本文作者：<a href="https://scriptoverture.github.io/blog" target="_blank">scriptoverture</a></li><li>本文链接：<a href="https://scriptoverture.github.io/blog/2024/09/22/React-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96/" target="_blank">https://scriptoverture.github.io/blog/2024/09/22/React-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96/</a></li><li>版权声明：自由转载-非商用-非衍生-保持署名（<a href="http://creativecommons.org/licenses/by-nc-nd/3.0/deed.zh" target="_blank">创意共享3.0许可证</a>）</li></ul></div></article><div class="share"></div><div class="comment"> <script src="https://giscus.app/client.js" data-repo="scriptoverture/blog" data-repo-id="R_kgDOMq9zeA" data-category="Announcements" data-category-id="DIC_kwDOMq9zeM4CiHLc" data-mapping="title" data-strict="1" data-reactions-enabled="1" data-emit-metadata="0" data-input-position="top" data-theme="light" data-lang="zh-CN" data-loading="lazy" crossorigin="anonymous" async> </script></div></div><div class="column one-fourth"><h3>Search</h3><div id="site_search"> <input style="width:96%" type="text" id="search_box" placeholder="Search"></div><ul id="search_results" style="font-size:14px;list-style-type:none;padding-top:10px;padding-left:10px;"></ul><script src="https://scriptoverture.github.io/blog/assets/js/simple-jekyll-search.min.js"></script> <script type="text/javascript"> SimpleJekyllSearch({ searchInput: document.getElementById('search_box'), resultsContainer: document.getElementById('search_results'), json: 'https://scriptoverture.github.io/blog/assets/search_data.json?v=1758293612', searchResultTemplate: '<li><a href="{url}" title="{title}">{title}</a></li>', noResultsText: 'No results found', limit: 10, fuzzy: false, exclude: ['Welcome'] }) </script><h3 class="post-directory-title mobile-hidden">Table of Contents</h3><div id="post-directory-module" class="mobile-hidden"><section class="post-directory"><dl></dl></section></div><script src="https://scriptoverture.github.io/blog/assets/js/jquery.toc.js"></script></div></div></section><footer class="container"><div class="site-footer" role="contentinfo"><div class="copyright left mobile-block"> © 2024 <span title="scriptoverture">scriptoverture</span> <a href="javascript:window.scrollTo(0,0)" class="right mobile-visible">TOP</a></div><ul class="site-footer-links right mobile-hidden"><li> <a href="javascript:window.scrollTo(0,0)" >TOP</a></li></ul><a href="https://github.com/https:/blog" target="_blank" aria-label="view source code"> <span class="mega-octicon octicon-mark-github" title="GitHub"></span> </a><ul class="site-footer-links mobile-hidden"><li> <a href="https://scriptoverture.github.io/blog/" title="首页" target="">首页</a></li><li> <a href="https://scriptoverture.github.io/blog/categories/" title="分类" target="">分类</a></li><li> <a href="https://scriptoverture.github.io/blog/archives/" title="归档" target="">归档</a></li><li> <a href="https://scriptoverture.github.io/blog/open-source/" title="开源" target="">开源</a></li><li> <a href="https://scriptoverture.github.io/blog/fragments/" title="片段" target="">片段</a></li><li> <a href="https://scriptoverture.github.io/blog/wiki/" title="维基" target="">维基</a></li><li> <a href="https://scriptoverture.github.io/blog/links/" title="链接" target="">链接</a></li><li> <a href="https://scriptoverture.github.io/blog/about/" title="关于" target="">关于</a></li><li><a href="https://scriptoverture.github.io/blog/feed.xml"><span class="octicon octicon-rss" style="color:orange;"></span></a></li></ul></div></footer><div class="tools-wrapper"> <a class="gotop" href="#" title="回到顶部"><span class="octicon octicon-arrow-up"></span></a></div><script src="https://scriptoverture.github.io/blog/assets/js/geopattern.js"></script> <script> jQuery(document).ready(function($) { $('.geopattern').each(function(){ $(this).geopattern($(this).data('pattern-id')); }); /* hljs.initHighlightingOnLoad(); */ }); </script></body></html>
